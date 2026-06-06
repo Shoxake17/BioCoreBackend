@@ -1,0 +1,59 @@
+# docker-compose.yml — bitta buyruq bilan: MongoDB + Backend + Caddy (avtomatik HTTPS)
+# Ishga tushirish:  docker compose up -d --build
+services:
+  mongo:
+    image: mongo:7
+    container_name: biocore_mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - biocore
+
+  backend:
+    build: ./BioCoreBackend
+    container_name: biocore_backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/biohacker_ai
+      JWT_SECRET: ${JWT_SECRET}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      NODE_ENV: production
+    # Backendni to'g'ridan-to'g'ri ham ochmoqchi bo'lsangiz (HTTPS'siz test):
+    # ports:
+    #   - "5000:5000"
+    networks:
+      - biocore
+
+  # Caddy — DOMEN uchun avtomatik Let's Encrypt HTTPS beradi.
+  # Agar domeningiz bo'lmasa, bu xizmatni o'chirib qo'ying va backend'da ports'ni oching.
+  caddy:
+    image: caddy:2-alpine
+    container_name: biocore_caddy
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - biocore
+
+networks:
+  biocore:
+
+volumes:
+  mongo_data:
+  caddy_data:
+  caddy_config:
