@@ -1,0 +1,32 @@
+# .github/workflows/deploy.yml
+# Push qilinganda serverga SSH orqali kirib, kodni yangilab, docker-compose'ni qayta quradi.
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'BioCoreBackend/**'
+      - 'docker-compose.yml'
+      - 'Caddyfile'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}   # qo'lda ham ishga tushirish mumkin
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Serverga deploy (SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.PROJECT_PATH }}
+            git pull origin main
+            docker compose up -d --build
+            docker image prune -f
+            echo "✅ Deploy tugadi"
